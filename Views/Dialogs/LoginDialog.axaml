@@ -1,0 +1,30 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SMBClient.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
+        x:Class="SMBClient.Views.LoginDialog"
+        Width="400"
+        Height="200"
+        WindowStartupLocation="CenterOwner"
+        Title="Login">
+
+  <Design.DataContext>
+    <vm:LoginDialogModel/>
+  </Design.DataContext>
+
+  <DockPanel Margin="8">
+    <StackPanel Margin="0,8,0,0" DockPanel.Dock="Bottom" HorizontalAlignment="Right" Orientation="Horizontal">
+      <Button Content="Cancel" Click="CancelButton_Click"/>
+      <Button Margin="8,0,0,0" Content="OK" Click="OkButton_Click"/>
+    </StackPanel>
+    <StackPanel>
+      <TextBlock Text="Username"/>
+      <TextBox x:Name="usernameTextBox" Margin="0,4,0,0" Text="{Binding Username, Mode=TwoWay}"/>
+      <TextBlock Margin="0,8,0,0" Text="Password"/>
+      <TextBox x:Name="passwordTextBox" Margin="0,4,0,0" Text="{Binding Password, Mode=TwoWay}" PasswordChar="*"/>
+    </StackPanel>
+  </DockPanel>
+
+</Window>

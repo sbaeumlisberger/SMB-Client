@@ -1,0 +1,28 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SMBClient.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
+        x:Class="SMBClient.Views.InputDialog"
+        Width="400"
+        Height="200"
+        WindowStartupLocation="CenterOwner"
+        Title="{Binding Title}">
+
+  <Design.DataContext>
+    <vm:InputDialogModel Title="Title" Message="Message"/>
+  </Design.DataContext>
+
+  <DockPanel Margin="8" LastChildFill="True">
+    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+      <Button Content="Cancel" Click="CancelButton_Click"/>
+      <Button Margin="8,0,0,0" Content="OK" Click="OkButton_Click"/>
+    </StackPanel>
+    <StackPanel>
+      <TextBlock Text="{Binding Message}"/>
+      <TextBox x:Name="inputTextBox" Margin="0,8,0,0" Text="{Binding Value, Mode=TwoWay}"/>
+    </StackPanel>
+  </DockPanel>
+
+</Window>

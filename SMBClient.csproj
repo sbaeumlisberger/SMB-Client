@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SMBClient</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="0.9.12" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="0.9.12" />
+    <PackageReference Include="Avalonia.Desktop" Version="0.9.12" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="0.9.12" />
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.1" />
+    <PackageReference Include="SMBLibrary" Version="1.4.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Views\Dialogs\ConfirmDialog.axaml.cs">
+      <DependentUpon>ConfirmDialog.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Dialogs\LoginDialog.axaml.cs">
+      <DependentUpon>LoginDialog.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>

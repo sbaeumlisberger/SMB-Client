@@ -1,0 +1,124 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:SMBClient.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
+        x:Class="SMBClient.Views.MainWindow"
+        Width="800"
+        Height="600"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="SMB Client">
+
+  <Design.DataContext>
+    <vm:MainWindowViewModel/>
+  </Design.DataContext>
+
+  <Window.Styles>
+    <Style Selector="TextBlock.fontIcon">
+      <Setter Property="FontFamily" Value="Segoe UI Emoji"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+  </Window.Styles>
+
+  <DockPanel LastChildFill="True">
+    <DockPanel DockPanel.Dock="Top" LastChildFill="True">
+      <Button Width="32" DockPanel.Dock="Left" FontSize="14" Content="←" Command="{Binding DirectoryUp}"/>
+      <Panel>
+        <ProgressBar IsIndeterminate="{Binding IsConnecting}" IsVisible="{Binding IsConnecting}"/>
+        <TextBox Background="Transparent" Text="{Binding Location, Mode=OneWay}" KeyDown="Location_KeyDown"/>
+      </Panel>
+    </DockPanel>
+    <Panel Background="Transparent">
+      <Panel.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Create Directory" Command="{Binding CreateDirectory}">
+            <MenuItem.Icon>
+              <TextBlock Classes="fontIcon" Text="&#x2795;"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="Paste" HotKey="Ctrl+V" Command="{Binding Paste}">
+            <MenuItem.Icon>
+              <TextBlock Classes="fontIcon" Text="&#x1F4CB;"/>
+            </MenuItem.Icon>
+          </MenuItem>
+        </ContextMenu>
+      </Panel.ContextMenu>
+      <DataGrid
+        x:Name="dataGrid"
+        RowBackground="Transparent"
+        Items="{Binding FileSystemItems}"
+        SelectionChanged="DataGrid_SelectionChanged"
+        DoubleTapped="DataGrid_DoubleTapped"
+        CanUserResizeColumns="True"
+        CanUserSortColumns="True">
+        <DataGrid.Columns>
+          <DataGridTemplateColumn>
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <Grid Margin="4,0,0,0" VerticalAlignment="Center">
+                  <TextBlock Classes="fontIcon" Text="&#x1F4C1;" IsVisible="{Binding IsDirectory}"/>
+                  <TextBlock Classes="fontIcon" Text="&#x1F4C4;" IsVisible="{Binding !IsDirectory}"/>
+                </Grid>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Name" Width="200">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <Panel 
+                  Background="Transparent"
+                  VerticalAlignment="Stretch" 
+                  HorizontalAlignment="Stretch"
+                  PointerPressed="Item_PointerPressed"
+                  PointerReleased="Item_PointerReleased">
+                  <TextBlock Margin="4,0,0,0" VerticalAlignment="Center" Text="{Binding FileName}"/>
+                  <Panel.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem 
+                        Header="Rename"
+                        Command="{Binding #dataGrid.DataContext.RenameAsync}"
+                        IsVisible="{Binding !#dataGrid.DataContext.MultipleItemsSelected}">
+                        <MenuItem.Icon>
+                          <TextBlock Classes="fontIcon" Text="&#x270F;"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem
+                        Header="Copy"
+                        HotKey="Ctrl+C"
+                        Command="{Binding #dataGrid.DataContext.Copy}">
+                        <MenuItem.Icon>
+                          <TextBlock Classes="fontIcon" Text="&#x1F4CB;"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem
+                        Header="Save"
+                        Command="{Binding #dataGrid.DataContext.SaveAsync}"
+                        IsVisible="{Binding !#dataGrid.DataContext.MultipleItemsSelected}">
+                        <MenuItem.Icon>
+                          <TextBlock Classes="fontIcon" Text="&#x1F4BE;"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem
+                        Header="Delete"
+                        HotKey="Delete"
+                        Command="{Binding #dataGrid.DataContext.DeleteAsync}">
+                        <MenuItem.Icon>
+                          <TextBlock Classes="fontIcon" Text="&#x1F5D1;"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                    </ContextMenu>
+                  </Panel.ContextMenu>
+                </Panel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Date modified" Width="150" Binding="{Binding LastWriteTime}"/>
+          <DataGridTextColumn Header="Size" Width="150" Binding="{Binding Size}"/>
+        </DataGrid.Columns>
+      </DataGrid>
+    </Panel>
+  </DockPanel>
+
+</Window>
