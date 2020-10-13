@@ -9,7 +9,8 @@
         Height="600"
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/avalonia-logo.ico"
-        Title="SMB Client">
+        Title="SMB Client"
+        KeyDown="Window_KeyDown">
 
   <Design.DataContext>
     <vm:MainWindowViewModel/>
@@ -21,8 +22,8 @@
       <Setter Property="TextAlignment" Value="Center"/>
     </Style>
   </Window.Styles>
-
-  <DockPanel LastChildFill="True">
+  
+  <DockPanel LastChildFill="True">    
     <DockPanel DockPanel.Dock="Top" LastChildFill="True">
       <Button Width="32" DockPanel.Dock="Left" FontSize="14" Content="←" Command="{Binding DirectoryUp}"/>
       <Panel>
@@ -30,7 +31,7 @@
         <TextBox Background="Transparent" Text="{Binding Location, Mode=OneWay}" KeyDown="Location_KeyDown"/>
       </Panel>
     </DockPanel>
-    <Panel Background="Transparent">
+    <Panel Background="Transparent" Focusable="True">
       <Panel.ContextMenu>
         <ContextMenu>
           <MenuItem Header="Create Directory" Command="{Binding CreateDirectory}">
@@ -38,7 +39,7 @@
               <TextBlock Classes="fontIcon" Text="&#x2795;"/>
             </MenuItem.Icon>
           </MenuItem>
-          <MenuItem Header="Paste" HotKey="Ctrl+V" Command="{Binding Paste}">
+          <MenuItem Header="Paste" Command="{Binding PasteAsync}">
             <MenuItem.Icon>
               <TextBlock Classes="fontIcon" Text="&#x1F4CB;"/>
             </MenuItem.Icon>
@@ -52,7 +53,8 @@
         SelectionChanged="DataGrid_SelectionChanged"
         DoubleTapped="DataGrid_DoubleTapped"
         CanUserResizeColumns="True"
-        CanUserSortColumns="True">
+        CanUserSortColumns="True"
+        ClipboardCopyMode="None">
         <DataGrid.Columns>
           <DataGridTemplateColumn>
             <DataGridTemplateColumn.CellTemplate>
@@ -85,8 +87,7 @@
                         </MenuItem.Icon>
                       </MenuItem>
                       <MenuItem
-                        Header="Copy"
-                        HotKey="Ctrl+C"
+                        Header="Copy"                       
                         Command="{Binding #dataGrid.DataContext.Copy}">
                         <MenuItem.Icon>
                           <TextBlock Classes="fontIcon" Text="&#x1F4CB;"/>
@@ -102,7 +103,6 @@
                       </MenuItem>
                       <MenuItem
                         Header="Delete"
-                        HotKey="Delete"
                         Command="{Binding #dataGrid.DataContext.DeleteAsync}">
                         <MenuItem.Icon>
                           <TextBlock Classes="fontIcon" Text="&#x1F5D1;"/>
@@ -120,5 +120,6 @@
       </DataGrid>
     </Panel>
   </DockPanel>
+
 
 </Window>

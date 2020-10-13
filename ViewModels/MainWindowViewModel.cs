@@ -137,7 +137,7 @@ namespace SMBClient.ViewModels
             }
         }
 
-        public async void Paste()
+        public async Task PasteAsync()
         {
             if (copiedItems.Any())
             {
@@ -153,6 +153,7 @@ namespace SMBClient.ViewModels
                         SMBFileShare.CopyFile(item.FilePath, dstPath);
                     }
                 }
+                UpdateFileSystemItems();
             }
             else
             {
@@ -171,12 +172,12 @@ namespace SMBClient.ViewModels
                             SMBFileShare.UploadFile(storageItem.Path, dstPath);
                         }
                     }
+                    UpdateFileSystemItems();
                 }
-            }
-            UpdateFileSystemItems();
+            }            
         }
 
-        public async void RenameAsync()
+        public async Task RenameAsync()
         {
             var item = SelectedFileSystemItems.First();
             var inputDialogModel = new InputDialogModel();
@@ -221,7 +222,7 @@ namespace SMBClient.ViewModels
             }
         }
 
-        public async void DeleteAsync()
+        public async Task DeleteAsync()
         {
             var confirmDialogModel = new ConfirmDialogModel();
             confirmDialogModel.Title = "Delete Items";

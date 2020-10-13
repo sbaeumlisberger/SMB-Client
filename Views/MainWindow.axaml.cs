@@ -93,6 +93,21 @@ namespace SMBClient.Views
                 }
             });
         }
+        public async void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            {
+                ViewModel.Copy();                
+            }
+            else if (e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            {
+                await ViewModel.PasteAsync();
+            }
+            else if (e.Key == Key.Delete)
+            {
+                await ViewModel.DeleteAsync();
+            }
+        }
 
         public void Location_KeyDown(object sender, KeyEventArgs e)
         {
@@ -101,7 +116,6 @@ namespace SMBClient.Views
                 ViewModel.Location = ((TextBox)sender).Text;
             }
         }
-
 
         public void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
