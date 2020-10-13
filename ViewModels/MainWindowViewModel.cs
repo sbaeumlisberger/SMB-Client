@@ -78,8 +78,20 @@ namespace SMBClient.ViewModels
         private IReadOnlyList<FileSystemItemViewModel> _selectedFileSystemItems = new List<FileSystemItemViewModel>();
 
         #endregion
-
-        public MainWindowViewModel() { /* design time */ }
+       
+        /* design time */
+        public MainWindowViewModel() 
+        {
+            FileSystemItems = new List<FileSystemItemViewModel>()
+            {
+                new FileSystemItemViewModel(true, "Directory 01", "", DateTime.Now, ""),
+                new FileSystemItemViewModel(true, "Directory 02", "", DateTime.Now, ""),
+                new FileSystemItemViewModel(true, "Directory 03", "", DateTime.Now, ""),
+                new FileSystemItemViewModel(false, "File 01", "", DateTime.Now, "71 MB"),
+                new FileSystemItemViewModel(false, "File 02", "", DateTime.Now, "653 kB"),
+                new FileSystemItemViewModel(false, "File 03", "", DateTime.Now, "1,52 GB"),
+            };
+        }
 
         public MainWindowViewModel(bool autoConnect)
         {

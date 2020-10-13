@@ -24,5 +24,14 @@ namespace SMBClient.ViewModels
             LastWriteTime = fdi.LastWriteTime.ToLocalTime();
             Size = IsDirectory ? string.Empty : ByteSizeFormatter.Format((ulong)fdi.EndOfFile);
         }
+
+        public FileSystemItemViewModel(bool isDirectory, string fileName, string filePath, DateTime lastWriteTime, string size)
+        {
+            IsDirectory = isDirectory;
+            FileName = fileName;
+            FilePath = filePath;
+            LastWriteTime = lastWriteTime;
+            Size = size;
+        }
     }
 }
