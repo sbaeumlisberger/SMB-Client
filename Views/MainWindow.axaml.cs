@@ -40,36 +40,52 @@ namespace SMBClient.Views
 
         private async Task DialogService_DialogRequested(object? sender, object dialogModel)
         {
-            if (dialogModel is SaveFileDialogModel saveFileDialogModel)
+            await Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                SaveFileDialog saveFileDialog = new SaveFileDialog();
-                saveFileDialog.InitialFileName = saveFileDialogModel.InitialFileName;
-                saveFileDialogModel.FilePath = await saveFileDialog.ShowAsync(this);
-            }
-            else if (dialogModel is OpenFolderDialogModel openFolderDialoggModel)
-            {
-                OpenFolderDialog openFolderDialog = new OpenFolderDialog();
-                openFolderDialoggModel.FolderPath = await openFolderDialog.ShowAsync(this);
-
-            }
-            else if (dialogModel is InputDialogModel inputDialogModel)
-            {
-                InputDialog inputDialog = new InputDialog();
-                inputDialog.DataContext = inputDialogModel;
-                await inputDialog.ShowDialog(this);
-            }
-            else if (dialogModel is LoginDialogModel loginDialogModel)
-            {
-                LoginDialog loginDialog = new LoginDialog();
-                loginDialog.DataContext = loginDialogModel;
-                await loginDialog.ShowDialog(this);
-            }
-            else if (dialogModel is ConfirmDialogModel confirmDialogModel)
-            {
-                ConfirmDialog confirmDialog = new ConfirmDialog();
-                confirmDialog.DataContext = confirmDialogModel;
-                await confirmDialog.ShowDialog(this);
-            }
+                if (dialogModel is SaveFileDialogModel saveFileDialogModel)
+                {
+                    SaveFileDialog saveFileDialog = new SaveFileDialog();
+                    saveFileDialog.InitialFileName = saveFileDialogModel.InitialFileName;
+                    string filePath = await saveFileDialog.ShowAsync(this);
+                    saveFileDialogModel.FilePath = string.IsNullOrEmpty(filePath) ? null : filePath;
+                }
+                else if (dialogModel is OpenFolderDialogModel openFolderDialoggModel)
+                {
+                    OpenFolderDialog openFolderDialog = new OpenFolderDialog();
+                    string folderPath = await openFolderDialog.ShowAsync(this);
+                    openFolderDialoggModel.FolderPath = string.IsNullOrEmpty(folderPath) ? null : folderPath;
+                }
+                else if (dialogModel is InputDialogModel inputDialogModel)
+                {
+                    InputDialog inputDialog = new InputDialog();
+                    inputDialog.DataContext = inputDialogModel;
+                    await inputDialog.ShowDialog(this);
+                }
+                else if (dialogModel is LoginDialogModel loginDialogModel)
+                {
+                    LoginDialog loginDialog = new LoginDialog();
+                    loginDialog.DataContext = loginDialogModel;
+                    await loginDialog.ShowDialog(this);
+                }
+                else if (dialogModel is ConfirmDialogModel confirmDialogModel)
+                {
+                    ConfirmDialog confirmDialog = new ConfirmDialog();
+                    confirmDialog.DataContext = confirmDialogModel;
+                    await confirmDialog.ShowDialog(this);
+                }
+                else if (dialogModel is MessageDialogModel messageDialogModel)
+                {
+                    MessageDialog messageDialog = new MessageDialog();
+                    messageDialog.DataContext = messageDialogModel;
+                    await messageDialog.ShowDialog(this);
+                }
+                else if (dialogModel is ProgressDialogModel progressDialogModel)
+                {
+                    ProgressDialog progessDialog = new ProgressDialog();
+                    progessDialog.DataContext = progressDialogModel;
+                    await progessDialog.ShowDialog(this);
+                }
+            });
         }
 
         private void MainWindow_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -80,7 +96,7 @@ namespace SMBClient.Views
                 {
                     isUpdatingSelection = true;
                     var dataGrid = this.Find<DataGrid>("dataGrid");
-                    var selectedItems = dataGrid.SelectedItems.Cast<FileSystemItemViewModel>().ToList();
+                    var selectedItems = dataGrid.SelectedItems.Cast<SMBItemViewModel>().ToList();
                     foreach (var item in ViewModel.SelectedFileSystemItems.Except(selectedItems))
                     {
                         dataGrid.SelectedItems.Add(item);
@@ -97,7 +113,7 @@ namespace SMBClient.Views
         {
             if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
             {
-                ViewModel.Copy();                
+                ViewModel.Copy();
             }
             else if (e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Control))
             {
@@ -122,13 +138,13 @@ namespace SMBClient.Views
             if (!isUpdatingSelection)
             {
                 var dataGrid = this.Find<DataGrid>("dataGrid");
-                ViewModel.SelectedFileSystemItems = dataGrid.SelectedItems.Cast<FileSystemItemViewModel>().ToList();
+                ViewModel.SelectedFileSystemItems = dataGrid.SelectedItems.Cast<SMBItemViewModel>().ToList();
             }
         }
 
         public void DataGrid_DoubleTapped(object sender, RoutedEventArgs e)
         {
-            var item = (FileSystemItemViewModel)((Visual)e.Source).DataContext;
+            var item = (SMBItemViewModel)((Visual)e.Source).DataContext;
             ViewModel.Open(item);
         }
 
@@ -136,7 +152,7 @@ namespace SMBClient.Views
         {
             if (e.MouseButton == MouseButton.Right)
             {
-                var item = (FileSystemItemViewModel)((Visual)e.Source).DataContext;
+                var item = (SMBItemViewModel)((Visual)e.Source).DataContext;
                 if (!ViewModel.SelectedFileSystemItems.Contains(item))
                 {
                     ViewModel.SelectedFileSystemItems = new[] { item };
@@ -148,7 +164,7 @@ namespace SMBClient.Views
         {
             if (e.InitialPressMouseButton == MouseButton.Right)
             {
-                var item = (FileSystemItemViewModel)((Visual)e.Source).DataContext;
+                var item = (SMBItemViewModel)((Visual)e.Source).DataContext;
                 if (!ViewModel.SelectedFileSystemItems.Contains(item))
                 {
                     ViewModel.SelectedFileSystemItems = new[] { item };

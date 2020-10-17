@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using SMBClient.ViewModels;
@@ -32,6 +33,15 @@ namespace SMBClient.Views
             else
             {
                 this.Find<TextBox>("usernameTextBox").Focus();
+            }
+        }
+
+        public void Window_KeyDown(object sender, KeyEventArgs e) 
+        {
+            if (e.Key == Key.Enter)
+            {
+                ((LoginDialogModel)DataContext).Canceled = false;
+                Close();
             }
         }
 

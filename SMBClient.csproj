@@ -20,6 +20,12 @@
     <Compile Update="Views\Dialogs\ConfirmDialog.axaml.cs">
       <DependentUpon>ConfirmDialog.axaml</DependentUpon>
     </Compile>
+    <Compile Update="Views\Dialogs\ProgressDialog.axaml.cs">
+      <DependentUpon>ProgressDialog.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Dialogs\MessageDialog.axaml.cs">
+      <DependentUpon>MessageDialog.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Views\Dialogs\LoginDialog.axaml.cs">
       <DependentUpon>LoginDialog.axaml</DependentUpon>
     </Compile>

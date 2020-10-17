@@ -34,6 +34,7 @@
     <Panel Background="Transparent" Focusable="True">
       <Panel.ContextMenu>
         <ContextMenu>
+          <!--&#x002B;-->
           <MenuItem Header="Create Directory" Command="{Binding CreateDirectory}">
             <MenuItem.Icon>
               <TextBlock Classes="fontIcon" Text="&#x2795;"/>
@@ -42,6 +43,11 @@
           <MenuItem Header="Paste" Command="{Binding PasteAsync}">
             <MenuItem.Icon>
               <TextBlock Classes="fontIcon" Text="&#x1F4CB;"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="Refresh" Command="{Binding Refresh}">
+            <MenuItem.Icon>
+              <TextBlock Classes="fontIcon" Text="&#x21BB;" FontSize="14" Margin="0,-1,0,0"/>
             </MenuItem.Icon>
           </MenuItem>
         </ContextMenu>

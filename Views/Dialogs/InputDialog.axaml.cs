@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using SMBClient.ViewModels;
@@ -25,6 +26,15 @@ namespace SMBClient.Views
         private void InputDialog_Activated(object? sender, System.EventArgs e)
         {
             this.Find<TextBox>("inputTextBox").Focus();
+        }
+
+        public void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ((InputDialogModel)DataContext).Canceled = false;
+                Close();
+            }
         }
 
         public void CancelButton_Click(object sender, RoutedEventArgs e)

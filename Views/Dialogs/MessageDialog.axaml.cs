@@ -7,9 +7,9 @@ using SMBClient.ViewModels;
 
 namespace SMBClient.Views
 {
-    public class ConfirmDialog : Window
+    public class MessageDialog : Window
     {
-        public ConfirmDialog()
+        public MessageDialog()
         {
             this.InitializeComponent();
 #if DEBUG
@@ -19,26 +19,19 @@ namespace SMBClient.Views
 
         private void InitializeComponent()
         {
-            AvaloniaXamlLoader.Load(this);
+            AvaloniaXamlLoader.Load(this);            
         }
 
         public void Window_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
-                ((ConfirmDialogModel)DataContext).Canceled = false;
                 Close();
             }
         }
 
-        public void CancelButton_Click(object sender, RoutedEventArgs e)
-        {           
-            Close();
-        }
-
-        public void OkButton_Click(object sender, RoutedEventArgs e) 
+        public void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            ((ConfirmDialogModel)DataContext).Canceled = false;
             Close();
         }
     }
