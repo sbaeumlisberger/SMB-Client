@@ -8,8 +8,7 @@
         Width="400"
         Height="200"
         WindowStartupLocation="CenterOwner"
-        Title="{Binding Title}"
-        KeyDown="Window_KeyDown">
+        Title="{Binding Title}">
 
   <Design.DataContext>
     <vm:InputDialogModel Title="Title" Message="Message"/>
@@ -17,8 +16,8 @@
 
   <DockPanel Margin="8" LastChildFill="True">
     <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
-      <Button Content="Cancel" Click="CancelButton_Click"/>
-      <Button Margin="8,0,0,0" Content="OK" Click="OkButton_Click"/>
+      <Button Content="Cancel" IsCancel="True" Click="CancelButton_Click"/>
+      <Button Margin="8,0,0,0" Content="OK" IsDefault="True" IsEnabled="{Binding IsOKButtonEnabled, Mode=OneWay}" Click="OkButton_Click"/>
     </StackPanel>
     <StackPanel>
       <TextBlock Text="{Binding Message}"/>

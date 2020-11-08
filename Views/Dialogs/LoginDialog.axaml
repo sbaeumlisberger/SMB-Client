@@ -8,8 +8,7 @@
         Width="400"
         Height="200"
         WindowStartupLocation="CenterOwner"
-        Title="Login"
-        KeyDown="Window_KeyDown">
+        Title="Login">
 
   <Design.DataContext>
     <vm:LoginDialogModel/>
@@ -17,15 +16,16 @@
 
   <DockPanel Margin="8">
     <StackPanel Margin="0,8,0,0" DockPanel.Dock="Bottom" HorizontalAlignment="Right" Orientation="Horizontal">
-      <Button Content="Cancel" Click="CancelButton_Click"/>
-      <Button Margin="8,0,0,0" Content="OK" Click="OkButton_Click"/>
+      <Button Content="Cancel" IsCancel="True" Click="CancelButton_Click"/>
+      <Button Margin="8,0,0,0" Content="OK" IsDefault="True" Click="OkButton_Click"/>
     </StackPanel>
     <StackPanel>
       <TextBlock Text="Username"/>
       <TextBox x:Name="usernameTextBox" Margin="0,4,0,0" Text="{Binding Username, Mode=TwoWay}"/>
       <TextBlock Margin="0,8,0,0" Text="Password"/>
       <TextBox x:Name="passwordTextBox" Margin="0,4,0,0" Text="{Binding Password, Mode=TwoWay}" PasswordChar="*"/>
-    </StackPanel>
+      <CheckBox Margin="0,8,0,0" Content="Remember" IsChecked="{Binding SaveCredentials, Mode=TwoWay}"/>
+  </StackPanel>
   </DockPanel>
 
 </Window>

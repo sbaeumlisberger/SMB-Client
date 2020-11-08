@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace SMBClient.Models
 {
-    public class DownloadTask : TaskBase
+    public class CopyTask : TaskBase
     {
         private readonly IEnumerable<SMBItem> items;
         private readonly string dstPath;
 
-        public DownloadTask(SMBFileShare smbFileShare, IEnumerable<SMBItem> items, string dstPath) : base(smbFileShare)
+        public CopyTask(SMBFileShare smbFileShare, IEnumerable<SMBItem> items, string dstPath) : base(smbFileShare)
         {
             this.items = items;
             this.dstPath = dstPath;
@@ -27,16 +27,16 @@ namespace SMBClient.Models
                 }
                 else
                 {
-                    AddOperation(new DownloadFileOperation(item, Path.Combine(dstPath, item.Name)));
+                    AddOperation(new CopyFileOperation(item, Path.Combine(dstPath, item.Name)));
                 }
             }
         }
 
-        public void CreateOperationsForDirectory(SMBItem smbItem, string dstPath)
+        private void CreateOperationsForDirectory(SMBItem item, string dstPath)
         {
-            AddOperation(new CreateDownloadDirectoryOperation(dstPath));
+            AddOperation(new CreateDirectoryOperation(dstPath));
 
-            foreach (var item in smbFileShare.RetrieveItems(smbItem))
+            foreach (var child in smbFileShare.RetrieveItems(item))
             {
                 if (item.IsDirectory)
                 {
@@ -44,7 +44,7 @@ namespace SMBClient.Models
                 }
                 else
                 {
-                    AddOperation(new DownloadFileOperation(item, Path.Combine(dstPath, item.Name)));
+                    AddOperation(new CopyFileOperation(child, Path.Combine(dstPath, item.Name)));
                 }
             }
         }

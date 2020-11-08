@@ -8,6 +8,7 @@ namespace SMBClient.ViewModels
     {
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+        public bool SaveCredentials { get; set; } = false;
         public bool Canceled { get; set; } = true;
     }
 }

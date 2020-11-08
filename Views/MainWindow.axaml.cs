@@ -42,14 +42,7 @@ namespace SMBClient.Views
         {
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                if (dialogModel is SaveFileDialogModel saveFileDialogModel)
-                {
-                    SaveFileDialog saveFileDialog = new SaveFileDialog();
-                    saveFileDialog.InitialFileName = saveFileDialogModel.InitialFileName;
-                    string filePath = await saveFileDialog.ShowAsync(this);
-                    saveFileDialogModel.FilePath = string.IsNullOrEmpty(filePath) ? null : filePath;
-                }
-                else if (dialogModel is OpenFolderDialogModel openFolderDialoggModel)
+                if (dialogModel is OpenFolderDialogModel openFolderDialoggModel)
                 {
                     OpenFolderDialog openFolderDialog = new OpenFolderDialog();
                     string folderPath = await openFolderDialog.ShowAsync(this);
@@ -113,11 +106,25 @@ namespace SMBClient.Views
         {
             if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
             {
-                ViewModel.Copy();
+                if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+                {
+                    await ViewModel.CopyToSystemClipboardAsync();
+                }
+                else
+                {
+                    ViewModel.CopyToAppClipboard();
+                }
             }
             else if (e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Control))
             {
-                await ViewModel.PasteAsync();
+                if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+                {
+                    await ViewModel.PasteFromSystemClipboardAsync();
+                }
+                else
+                {
+                    await ViewModel.PasteAsync();
+                }
             }
             else if (e.Key == Key.Delete)
             {
@@ -142,10 +149,10 @@ namespace SMBClient.Views
             }
         }
 
-        public void DataGrid_DoubleTapped(object sender, RoutedEventArgs e)
+        public async void DataGrid_DoubleTapped(object sender, RoutedEventArgs e)
         {
             var item = (SMBItemViewModel)((Visual)e.Source).DataContext;
-            ViewModel.Open(item);
+            await ViewModel.OpenAsync(item);
         }
 
         public void Item_PointerPressed(object sender, PointerPressedEventArgs e)

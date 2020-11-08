@@ -1,5 +1,4 @@
-﻿using SMBClient.Utils;
-using SMBLibrary;
+﻿using SMBLibrary;
 using SMBLibrary.Client;
 using System;
 using System.Collections.Generic;
@@ -7,7 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Threading;
+using System.Text;
 using System.Threading.Tasks;
 using FileAttributes = SMBLibrary.FileAttributes;
 
@@ -15,10 +14,13 @@ namespace SMBClient.Models
 {
     public class SMBFileShare : IDisposable
     {
+        public uint MaxReadSize => client.MaxReadSize;
+        public uint MaxWriteSize => client.MaxWriteSize;
+
         private readonly SMB2Client client;
         private readonly ISMBFileStore fileStore;
 
-        private SMBFileShare(SMB2Client client, ISMBFileStore fileStore)
+        private SMBFileShare(SMB2Client client, ISMBFileStore fileStore) 
         {
             this.client = client;
             this.fileStore = fileStore;
@@ -55,15 +57,14 @@ namespace SMBClient.Models
         public void Dispose()
         {
             fileStore.Disconnect();
-            client.Disconnect();
         }
 
-        public List<SMBItem> GetFilesAndDirectories(SMBItem smbItem)
+        public List<SMBItem> RetrieveItems(SMBItem smbItem)
         {
-            return GetFilesAndDirectories(smbItem.Path);
+            return RetrieveItems(smbItem.Path);
         }
 
-        public List<SMBItem> GetFilesAndDirectories(string path)
+        public List<SMBItem> RetrieveItems(string path)
         {
             NTStatus status = fileStore.CreateFile(out object directoryHandle, out FileStatus fileStatus, path, AccessMask.GENERIC_READ, FileAttributes.Directory, ShareAccess.Read | ShareAccess.Write, CreateDisposition.FILE_OPEN, CreateOptions.FILE_DIRECTORY_FILE, null);
             if (status != NTStatus.STATUS_SUCCESS)
@@ -78,94 +79,14 @@ namespace SMBClient.Models
                 .ToList();
         }
 
-        public void CopyFile(string srcPath, string dstPath, Progress progress)
+        public SMBReadStream OpenRead(string path)
         {
-            using (Stream memoryStream = new MemoryStream()) // TODO: copy directly
-            {
-                ReadFile(srcPath, memoryStream, progress);
-                CreateFile(dstPath, memoryStream, progress);
-            }
+            return new SMBReadStream(fileStore, (int)client.MaxReadSize, path);
         }
 
-        public void CopyDirectory(string srcPath, string dstPath, Progress progress)
+        public SMBWriteStream OpenWrite(string path)
         {
-            CreateDirectory(dstPath);
-
-            foreach (var item in GetFilesAndDirectories(srcPath))
-            {
-                if (progress.IsCanceled)
-                {
-                    return;
-                }
-                if (item.IsDirectory)
-                {
-                    CopyDirectory(item.Path, Path.Combine(dstPath, item.Name), progress);
-                }
-                else
-                {
-                    CopyFile(item.Path, Path.Combine(dstPath, item.Name), progress);
-                }
-            }
-        }
-
-        public void ReadFile(string srcPath, Stream dstStream, Progress progress)
-        {
-            NTStatus status = fileStore.CreateFile(out object fileHandle, out FileStatus fileStatus, srcPath, AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE, FileAttributes.Normal, ShareAccess.Read, CreateDisposition.FILE_OPEN, CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT, null);
-
-            if (status != NTStatus.STATUS_SUCCESS)
-            {
-                throw new IOException($"Failed to read from file: {status}");
-            }
-
-            long totalBytesRead = 0;
-            while (true)
-            {
-                status = fileStore.ReadFile(out byte[] data, fileHandle, totalBytesRead, (int)client.MaxReadSize);
-                if (status != NTStatus.STATUS_SUCCESS && status != NTStatus.STATUS_END_OF_FILE)
-                {
-                    throw new IOException($"Failed to read from file: {status}");
-                }
-                if (status == NTStatus.STATUS_END_OF_FILE || data.Length == 0)
-                {
-                    break;
-                }
-                int bytesRead = data.Length;
-                totalBytesRead += bytesRead;
-                dstStream.Write(data, 0, bytesRead);
-                progress.Report(bytesRead);
-            }
-            dstStream.Flush();
-            fileStore.CloseFile(fileHandle); // TODO: finally
-        }
-
-        public void CreateFile(string dstPath, Stream content, Progress progress)
-        {
-            NTStatus status = fileStore.CreateFile(out object fileHandle, out FileStatus fileStatus, dstPath, AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE, FileAttributes.Normal, ShareAccess.None, CreateDisposition.FILE_CREATE, CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT, null);
-
-            if (status != NTStatus.STATUS_SUCCESS)
-            {
-                throw new IOException($"Failed to write to file: {status}");
-            }
-
-            int totalBytesWrittenCount = 0;
-            while (totalBytesWrittenCount < content.Length)
-            {
-                if (progress.IsCanceled)
-                {
-                    break;
-                }
-                int bytesToWriteCount = (int)Math.Min(client.MaxWriteSize, content.Length - totalBytesWrittenCount);
-                byte[] bytesToWrite = new byte[bytesToWriteCount];
-                content.Read(bytesToWrite, 0, bytesToWriteCount);
-                status = fileStore.WriteFile(out int bytesWritten, fileHandle, totalBytesWrittenCount, bytesToWrite);
-                totalBytesWrittenCount += bytesWritten;
-                progress.Report(bytesWritten);
-                if (status != NTStatus.STATUS_SUCCESS)
-                {
-                    throw new IOException($"Failed to write to file: {status}");
-                }
-            }
-            fileStore.CloseFile(fileHandle); // TODO: finally
+            return new SMBWriteStream(fileStore, (int)client.MaxWriteSize, path);
         }
 
         public void CreateDirectory(string path)
@@ -178,7 +99,7 @@ namespace SMBClient.Models
             fileStore.CloseFile(fileHandle);
         }
 
-        public void Rename(string path, string newPath)
+        public void Rename(string path, string newName)
         {
             NTStatus status = fileStore.CreateFile(out object fileHandle, out FileStatus fileStatus, path, AccessMask.GENERIC_ALL, FileAttributes.Normal, ShareAccess.Read, CreateDisposition.FILE_OPEN, 0, null);
             if (status != NTStatus.STATUS_SUCCESS)
@@ -186,7 +107,8 @@ namespace SMBClient.Models
                 throw new IOException($"Failed to rename file: {status}");
             }
             FileRenameInformationType2 fileRenameInformation = new FileRenameInformationType2();
-            fileRenameInformation.FileName = newPath;
+            string parentPath = Path.GetDirectoryName(path) ?? string.Empty;
+            fileRenameInformation.FileName = Path.Combine(parentPath, newName);
             fileRenameInformation.ReplaceIfExists = false;
             status = fileStore.SetFileInformation(fileHandle, fileRenameInformation);
             fileStore.CloseFile(fileHandle);
@@ -220,9 +142,11 @@ namespace SMBClient.Models
             }
         }
 
+
+        // TODO ?
         public void DeleteDirectory(string path)
         {
-            foreach (var item in GetFilesAndDirectories(path))
+            foreach (var item in RetrieveItems(path))
             {
                 if (item.IsDirectory)
                 {
@@ -235,6 +159,5 @@ namespace SMBClient.Models
             }
             DeleteFile(path);
         }
-
     }
 }

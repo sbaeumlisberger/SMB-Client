@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SMBClient.Utils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -21,11 +22,11 @@ namespace SMBClient.Models
 
         public void Execute(SMBFileShare smbFileShare, Progress progress)
         {
-            using (Stream fileStream = File.OpenRead())
-            {
-                smbFileShare.CreateFile(DstPath, fileStream, progress);
-                progress.Report(1);
-            }
+            int bufferSize = (int)smbFileShare.MaxWriteSize;
+            using var fileStream = File.OpenRead();
+            using var dstStream = smbFileShare.OpenWrite(DstPath);
+            fileStream.CopyTo(dstStream, bufferSize, progress);
+            progress.Report(1);
         }
     }
 }

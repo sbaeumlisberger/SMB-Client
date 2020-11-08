@@ -22,15 +22,6 @@ namespace SMBClient.Views
             AvaloniaXamlLoader.Load(this);
         }
 
-        public void Window_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                ((ConfirmDialogModel)DataContext).Canceled = false;
-                Close();
-            }
-        }
-
         public void CancelButton_Click(object sender, RoutedEventArgs e)
         {           
             Close();

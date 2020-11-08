@@ -1,37 +1,27 @@
-﻿using Avalonia.Controls;
+﻿using Avalonia.Threading;
 using ReactiveUI;
-using SharpGen.Runtime;
+using ReactiveUI.Fody.Helpers;
 using SMBClient.Models;
 using SMBClient.Utils;
-using SMBLibrary;
-using SMBLibrary.SMB1;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
+using Windows.System;
 
 namespace SMBClient.ViewModels
 {
     public class MainWindowViewModel : ViewModelBase
     {
-        public bool IsConnecting
-        {
-            get => _isConnecting;
-            private set => this.RaiseAndSetIfChanged(ref _isConnecting, value);
-        }
+        [Reactive] public bool IsConnecting { get; set; } = false;
 
-        public string CurrentPath
-        {
-            get => _currentPath;
-            private set => this.RaiseAndSetIfChanged(ref _currentPath, value);
-        }
+        [Reactive] public string CurrentPath { get; set; } = string.Empty;
 
         public string Location
         {
@@ -39,27 +29,24 @@ namespace SMBClient.ViewModels
             set => SetLocation(value);
         }
 
-        public IReadOnlyList<SMBItemViewModel> FileSystemItems
-        {
-            get => _fileSystemItems;
-            private set => this.RaiseAndSetIfChanged(ref _fileSystemItems, value);
-        }
+        [Reactive] public IReadOnlyList<SMBItemViewModel> FileSystemItems { get; set; } = new List<SMBItemViewModel>();
 
         public IReadOnlyList<SMBItemViewModel> SelectedFileSystemItems
         {
-            get => _selectedFileSystemItems;
+            get => selectedFileSystemItems;
             set
             {
-                bool countChanged = value.Count != _selectedFileSystemItems.Count;
-                this.RaiseAndSetIfChanged(ref _selectedFileSystemItems, value);
-                if (countChanged)
-                {
-                    this.RaisePropertyChanged(nameof(MultipleItemsSelected));
-                }
+                this.RaiseAndSetIfChanged(ref selectedFileSystemItems, value);
+                MultipleItemsSelected = SelectedFileSystemItems.Count > 1;
+                DirectorySelected = SelectedFileSystemItems.Any(vm => vm.IsDirectory);
             }
         }
 
-        public bool MultipleItemsSelected => SelectedFileSystemItems.Count > 1;
+        [Reactive] public bool MultipleItemsSelected { get; set; } = false;
+
+        [Reactive] public bool DirectorySelected { get; set; } = false;
+
+        public ObservableCollection<BackgroundTaskViewModel> BackgroundTasks { get; } = new ObservableCollection<BackgroundTaskViewModel>();
 
         private string LastConnectionFile => Path.Combine(AppDomain.CurrentDomain.BaseDirectory!, "lastConnection");
 
@@ -71,39 +58,44 @@ namespace SMBClient.ViewModels
 
         private string server = string.Empty;
         private string share = string.Empty;
+        private string username = string.Empty;
+        private string password = string.Empty;
 
         private IReadOnlyList<SMBItemViewModel> copiedItems = new List<SMBItemViewModel>();
 
-        #region backing fields
+        private IReadOnlyList<SMBItemViewModel> selectedFileSystemItems = new List<SMBItemViewModel>();
 
-        private bool _isConnecting = false;
-        public string _currentPath = string.Empty;
-        private IReadOnlyList<SMBItemViewModel> _fileSystemItems = new List<SMBItemViewModel>();
-        private IReadOnlyList<SMBItemViewModel> _selectedFileSystemItems = new List<SMBItemViewModel>();
-
-        #endregion
+        private readonly CredentialsManager credentialsManager = new CredentialsManager();
 
         /* design time */
         public MainWindowViewModel()
         {
             FileSystemItems = new List<SMBItemViewModel>()
             {
-                new SMBItemViewModel(true, "Directory 01", "", DateTime.Now, ""),
-                new SMBItemViewModel(true, "Directory 02", "", DateTime.Now, ""),
-                new SMBItemViewModel(true, "Directory 03", "", DateTime.Now, ""),
-                new SMBItemViewModel(false, "File 01", "", DateTime.Now, "71 MB"),
-                new SMBItemViewModel(false, "File 02", "", DateTime.Now, "653 kB"),
-                new SMBItemViewModel(false, "File 03", "", DateTime.Now, "1,52 GB"),
+                new SMBItemViewModel(true, "Directory 01", "", DateTime.Now, DateTime.Now, ""),
+                new SMBItemViewModel(true, "Directory 02", "", DateTime.Now, DateTime.Now, ""),
+                new SMBItemViewModel(true, "Directory 03", "", DateTime.Now, DateTime.Now, ""),
+                new SMBItemViewModel(false, "File 01", "", DateTime.Now, DateTime.Now, "71 MB"),
+                new SMBItemViewModel(false, "File 02", "", DateTime.Now, DateTime.Now, "653 kB"),
+                new SMBItemViewModel(false, "File 03", "", DateTime.Now, DateTime.Now, "1,52 GB"),
             };
+            var bt1Progress = new Progress();
+            bt1Progress.Initialize(100);
+            bt1Progress.Report(37);
+            BackgroundTasks.Add(new BackgroundTaskViewModel(bt1Progress, "Donwload File 01 to clipboard"));
+            var bt2Progress = new Progress();
+            bt2Progress.Initialize(100);
+            bt2Progress.Report(82);
+            var bt2 = new BackgroundTaskViewModel(bt2Progress, "Donwload File 02 to clipboard");
+            bt2.ErrorMessage = "Failed to read from file: STATUS_INVALID_SMB";
+            BackgroundTasks.Add(bt2);
         }
 
         public MainWindowViewModel(bool autoConnect)
         {
             if (autoConnect && File.Exists(LastConnectionFile))
             {
-                string lastConnection = File.ReadAllText(LastConnectionFile);
-                string[] lines = lastConnection.Split("\n");
-                SetLocation(location: lines[0], username: lines[1]);
+                SetLocation(File.ReadAllText(LastConnectionFile));
             }
         }
 
@@ -119,25 +111,49 @@ namespace SMBClient.ViewModels
             }
         }
 
-        public void Open(SMBItemViewModel item)
+        public async Task OpenAsync(SMBItemViewModel itemVM)
         {
-            if (item.IsDirectory)
+            if (itemVM.IsDirectory)
             {
-                CurrentPath = item.FilePath;
+                CurrentPath = itemVM.FilePath;
                 this.RaisePropertyChanged(nameof(Location));
                 UpdateFileSystemItems();
             }
             else
             {
-                string tmpDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory!, "tmp");
-                Directory.CreateDirectory(tmpDirectory);
-                string tmpPath = Path.Combine(tmpDirectory, item.FileName);
-                SMBFileShare.CopyFile(item.FilePath, tmpPath, new Progress());
-                Process.Start(new ProcessStartInfo()
+                await OpenFileAsync(itemVM);
+            }
+        }
+
+        public async Task OpenWithAsync()
+        {
+            var itemVM = SelectedFileSystemItems.First();
+            await OpenFileAsync(itemVM, showApplicationPicker: true);
+        }
+
+        public async Task OpenFileAsync(SMBItemViewModel itemVM, bool showApplicationPicker = false)
+        {
+            try
+            {
+                string tmpDirectoryPath = Path.Combine(Path.GetTempPath(), "smb-client");
+                Directory.Delete(tmpDirectoryPath, true);
+                Directory.CreateDirectory(tmpDirectoryPath);
+                string tmpFilePath = Path.Combine(tmpDirectoryPath, itemVM.FileName);
+                var copyOperation = new DownloadFileOperation(itemVM.SMBItem, tmpFilePath);
+                copyOperation.Execute(SMBFileShare);
+                var tmpFile = await StorageFile.GetFileFromPathAsync(tmpFilePath);
+                var options = new LauncherOptions()
                 {
-                    FileName = tmpPath,
-                    UseShellExecute = true,
-                    CreateNoWindow = true
+                    DisplayApplicationPicker = showApplicationPicker
+                };
+                await Launcher.LaunchFileAsync(tmpFile, options);
+            }
+            catch (Exception exception)
+            {
+                await DialogService.ShowDialog(new MessageDialogModel()
+                {
+                    Title = $"Could not open {itemVM.FileName}",
+                    Message = exception.ToString()
                 });
             }
         }
@@ -152,34 +168,61 @@ namespace SMBClient.ViewModels
             }
         }
 
-        public async Task CreateDirectory()
+        public async Task CreateDirectoryAsync()
         {
-            var inputDialogModel = new InputDialogModel();
-            inputDialogModel.Title = "Create Directory";
-            inputDialogModel.Message = "Enter a name for the directory:";
-            await DialogService.ShowDialog(inputDialogModel);
-            if (!inputDialogModel.Canceled)
+            try
             {
-                SMBFileShare.CreateDirectory(Path.Combine(CurrentPath, inputDialogModel.Value));
-                UpdateFileSystemItems();
+                var inputDialogModel = new InputDialogModel();
+                inputDialogModel.Title = "Create Directory";
+                inputDialogModel.Message = "Enter a name for the directory:";
+                await DialogService.ShowDialog(inputDialogModel);
+                if (!inputDialogModel.Canceled)
+                {
+                    SMBFileShare.CreateDirectory(Path.Combine(CurrentPath, inputDialogModel.Value));
+                    UpdateFileSystemItems();
+                }
+            }
+            catch (Exception exception)
+            {
+                await DialogService.ShowDialog(new MessageDialogModel()
+                {
+                    Title = $"Could not create directoy",
+                    Message = exception.ToString()
+                });
             }
         }
 
         public async Task PasteAsync()
         {
+            if (copiedItems.Any())
+            {
+                await PasteFromAppClipboardAsync();
+            }
+            else
+            {
+                await PasteFromSystemClipboardAsync();
+            }
+        }
+
+        public async Task PasteFromAppClipboardAsync()
+        {
+            if (!copiedItems.Any())
+            {
+                return;
+            }
             var progress = new Progress();
             try
             {
-                if (copiedItems.Any())
+                var progessDialogModel = new ProgressDialogModel(progress)
                 {
-                    PasteFromApp();
-                    UpdateFileSystemItems();
-                }
-                else if (Clipboard.GetContent().Contains(StandardDataFormats.StorageItems))
-                {
-                    await PasteFromClipboardAsync(progress);
-                    UpdateFileSystemItems();
-                }
+                    Title = "Paste files from app clipboard",
+                    Message = "Paste files from app clipboard",
+                };
+                var dialogTask = DialogService.ShowDialog(progessDialogModel);
+                var copyTask = new CopyTask(SMBFileShare, copiedItems.Select(itemVM => itemVM.SMBItem), CurrentPath);
+                await copyTask.ExecuteAsync(progress).ConfigureAwait(false);
+                await dialogTask.ConfigureAwait(false);
+                UpdateFileSystemItems();
             }
             catch (OperationCanceledException)
             {
@@ -192,65 +235,72 @@ namespace SMBClient.ViewModels
                 UpdateFileSystemItems();
                 await DialogService.ShowDialog(new MessageDialogModel()
                 {
-                    Title = "Could not paste",
+                    Title = "Could not paste from app clipboard",
                     Message = exception.ToString()
                 });
             }
         }
 
-        // TODO: progress
-        private void PasteFromApp()
+        public async Task PasteFromSystemClipboardAsync()
         {
-            foreach (SMBItemViewModel item in copiedItems)
+            if (!Clipboard.GetContent().Contains(StandardDataFormats.StorageItems))
             {
-                string dstPath = Path.Combine(CurrentPath, item.FileName);
-                if (item.IsDirectory)
-                {
-                    SMBFileShare.CopyDirectory(item.FilePath, dstPath, new Progress());
-                }
-                else
-                {
-                    SMBFileShare.CopyFile(item.FilePath, dstPath, new Progress());
-                }
+                return;
             }
-        }
-
-        private async Task PasteFromClipboardAsync(Progress progress)
-        {
-            var clipboard = Clipboard.GetContent();
-            var progessDialogModel = new ProgressDialogModel(progress)
+            var progress = new Progress();
+            try
             {
-                Title = "Paste files from clipboard",
-                Message = "Paste files from clipboard",
-            };
-            var dialogTask = DialogService.ShowDialog(progessDialogModel);
-            // TODO use single uploadTask
-            foreach (IStorageItem storageItem in await clipboard.GetStorageItemsAsync())
-            {
-                string dstPath = Path.Combine(CurrentPath, Path.GetFileName(storageItem.Path));
-                var fileSystemInfo = storageItem.IsOfType(StorageItemTypes.File)
-                    ? (FileSystemInfo)new FileInfo(storageItem.Path)
-                    : (FileSystemInfo)new DirectoryInfo(storageItem.Path);
-                var uploadTask = new UploadTask(SMBFileShare, fileSystemInfo, dstPath);
+                var clipboard = Clipboard.GetContent();
+                var progessDialogModel = new ProgressDialogModel(progress)
+                {
+                    Title = "Paste files from system clipboard",
+                    Message = "Paste files from system clipboard",
+                };
+                var dialogTask = DialogService.ShowDialog(progessDialogModel);
+                var fileSystemItems = new List<FileSystemInfo>();
+                foreach (IStorageItem storageItem in await clipboard.GetStorageItemsAsync())
+                {
+                    var fileSystemInfo = storageItem.IsOfType(StorageItemTypes.File)
+                        ? (FileSystemInfo)new FileInfo(storageItem.Path)
+                        : (FileSystemInfo)new DirectoryInfo(storageItem.Path);
+                    fileSystemItems.Add(fileSystemInfo);
+                }
+                var uploadTask = new UploadTask(SMBFileShare, fileSystemItems, CurrentPath);
                 await uploadTask.ExecuteAsync(progress).ConfigureAwait(false);
+                await dialogTask.ConfigureAwait(false);
+                UpdateFileSystemItems();
             }
-            await dialogTask;
+            catch (OperationCanceledException)
+            {
+                // canceled by user
+                UpdateFileSystemItems();
+            }
+            catch (Exception exception)
+            {
+                progress.Fail();
+                UpdateFileSystemItems();
+                await DialogService.ShowDialog(new MessageDialogModel()
+                {
+                    Title = "Could not paste from system clipboard",
+                    Message = exception.ToString()
+                });
+            }
         }
 
         public async Task RenameAsync()
         {
-            var item = SelectedFileSystemItems.First();
+            var itemVM = SelectedFileSystemItems.First();
             var inputDialogModel = new InputDialogModel();
-            inputDialogModel.Title = "Rename Directory";
-            inputDialogModel.Message = "Enter a name for the directory:";
-            inputDialogModel.Value = item.FileName;
+            inputDialogModel.Title = "Rename";
+            inputDialogModel.Message = "Enter a name for the item:";
+            inputDialogModel.Value = itemVM.FileName;
             await DialogService.ShowDialog(inputDialogModel);
-            if (!inputDialogModel.Canceled && inputDialogModel.Value != item.FileName)
+            if (!inputDialogModel.Canceled && inputDialogModel.Value != itemVM.FileName)
             {
                 try
                 {
-                    string newPath = Path.Combine(CurrentPath, inputDialogModel.Value);
-                    SMBFileShare.Rename(item.FilePath, newPath);
+                    string newName = inputDialogModel.Value;
+                    SMBFileShare.Rename(itemVM.FilePath, newName);
                     UpdateFileSystemItems();
                 }
                 catch (Exception exception)
@@ -264,64 +314,79 @@ namespace SMBClient.ViewModels
             }
         }
 
-        public async void Copy()
+        public void CopyToAppClipboard()
         {
-            copiedItems = SelectedFileSystemItems.ToList();
+            copiedItems = new List<SMBItemViewModel>(SelectedFileSystemItems);
+        }
+
+        public async Task CopyToSystemClipboardAsync()
+        {
+            var itemVMs = SelectedFileSystemItems.Where(item => !item.IsDirectory);
+
+            if (!itemVMs.Any()) { return; }
+
+            SMBFileShare? smbFileShare = null;
+            var preparationBackgroundTask = new BackgroundTaskViewModel(new Progress(), $"Prepare download to clipboard");
+            try
+            {
+                BackgroundTasks.Add(preparationBackgroundTask);
+                IPAddress ipAddress = await ResolveIPAdressAsync(server);
+                smbFileShare = await SMBFileShare.ConnectAsync(ipAddress, share, username, password); // use seperated connection 
+                BackgroundTasks.Remove(preparationBackgroundTask);
+            }
+            catch (Exception exception)
+            {
+                Debug.WriteLine($"Could not prepare download to clipboard: {exception}");
+                preparationBackgroundTask.ErrorMessage = exception.Message;
+                return;
+            }
 
             var storageItems = new List<StorageFile>();
-            foreach (var item in SelectedFileSystemItems.Where(item => !item.IsDirectory))
+            int downloadedCount = 0;
+            foreach (var itemVM in itemVMs)
             {
-                storageItems.Add(await StorageFile.CreateStreamedFileAsync(item.FileName, dataRequest =>
+                storageItems.Add(await StorageFile.CreateStreamedFileAsync(itemVM.FileName, (dataRequest) =>
                 {
-                    try
+                    lock (storageItems) // synchronize smb requests
                     {
-                        SMBFileShare.ReadFile(item.FilePath, dataRequest.AsStreamForWrite(), Progress.None);
-                    }
-                    catch (Exception exception)
-                    {
-                        Debug.WriteLine($"Could not stream file: {exception}");
-                    }
-                    finally
-                    {
-                        dataRequest.Dispose();
+                        var progress = new Progress();
+                        var backgroundTask = new BackgroundTaskViewModel(progress, $"Download {itemVM.FileName} to clipboard");
+                        Dispatcher.UIThread.Post(() => BackgroundTasks.Add(backgroundTask));
+                        try
+                        {
+                            progress.Initialize(itemVM.SMBItem.Size);
+                            using var stream = smbFileShare.OpenRead(itemVM.FilePath);
+                            stream.CopyTo(dataRequest.AsStreamForWrite(), (int)smbFileShare.MaxReadSize, progress);
+                            Dispatcher.UIThread.Post(() => BackgroundTasks.Remove(backgroundTask));
+                        }
+                        catch (Exception exception)
+                        {
+                            Debug.WriteLine($"Could not download file: {exception}");
+                            backgroundTask.ErrorMessage = exception.Message;
+                        }
+                        finally
+                        {
+                            dataRequest.Dispose();
+
+                            if (++downloadedCount == storageItems.Count)
+                            {
+                                smbFileShare.Dispose();
+                            }
+                        }
                     }
                 }, null));
             }
-            if (storageItems.Any())
-            {
-                var dataPackage = new DataPackage();
-                dataPackage.SetStorageItems(storageItems);
-                Clipboard.SetContent(dataPackage);
-                Clipboard.Flush();
-            }
+            var dataPackage = new DataPackage();
+            dataPackage.SetStorageItems(storageItems);
+            Clipboard.SetContent(dataPackage);
+            Clipboard.Flush();
         }
 
         public async Task SaveAsync()
         {
-            DownloadTask? downloadTask = null;
-
-            var itemVM = SelectedFileSystemItems.First();
-            if (itemVM.IsDirectory)
-            {
-                var openFolderDialogModel = new OpenFolderDialogModel();
-                await DialogService.ShowDialog(openFolderDialogModel);
-                if (openFolderDialogModel.FolderPath is string dstPath)
-                {
-                    downloadTask = new DownloadTask(SMBFileShare, true, itemVM.SMBItem, Path.Combine(dstPath, itemVM.FileName));
-                }
-            }
-            else
-            {
-                var saveFileDialogModel = new SaveFileDialogModel();
-                saveFileDialogModel.InitialFileName = itemVM.FileName;
-                await DialogService.ShowDialog(saveFileDialogModel);
-                if (saveFileDialogModel.FilePath is string dstPath)
-                {
-                    downloadTask = new DownloadTask(SMBFileShare, false, itemVM.SMBItem, dstPath);
-                }
-            }
-
-            if (downloadTask != null)
+            var openFolderDialogModel = new OpenFolderDialogModel();
+            await DialogService.ShowDialog(openFolderDialogModel);
+            if (openFolderDialogModel.FolderPath is string dstPath)
             {
                 Progress progress = new Progress();
                 var progessDialogModel = new ProgressDialogModel(progress)
@@ -332,6 +397,8 @@ namespace SMBClient.ViewModels
                 var progessDialogTask = DialogService.ShowDialog(progessDialogModel);
                 try
                 {
+                    var items = SelectedFileSystemItems.Select(itemVM => itemVM.SMBItem);
+                    var downloadTask = new DownloadTask(SMBFileShare, items, dstPath);
                     await downloadTask.ExecuteAsync(progress);
                     await progessDialogTask;
                 }
@@ -351,7 +418,6 @@ namespace SMBClient.ViewModels
             }
         }
 
-        // TODO: progress
         public async Task DeleteAsync()
         {
             var confirmDialogModel = new ConfirmDialogModel();
@@ -376,7 +442,16 @@ namespace SMBClient.ViewModels
             }
         }
 
-        private void SetLocation(string location, string username = "")
+        public void CloseBackgroundTask(BackgroundTaskViewModel backgroundTask)
+        {
+            if (!backgroundTask.HasError)
+            {
+                throw new ArgumentException(null, nameof(backgroundTask));
+            }
+            BackgroundTasks.Remove(backgroundTask);
+        }
+
+        private void SetLocation(string location)
         {
             string[] parts = location.RemovePrefix("smb://").Split("/");
 
@@ -395,7 +470,7 @@ namespace SMBClient.ViewModels
                 this.share = share;
                 CurrentPath = path;
 
-                ConnectAsync(username).ContinueWith(task =>
+                ConnectAsync().ContinueWith(task =>
                 {
                     if (task.IsCompleted && task.Result)
                     {
@@ -410,30 +485,35 @@ namespace SMBClient.ViewModels
             }
         }
 
-        private async Task<bool> ConnectAsync(string lastUsername = "")
+        private async Task<bool> ConnectAsync()
         {
             try
             {
-                IsConnecting = true;
                 var loginDialogModel = new LoginDialogModel();
-                loginDialogModel.Username = lastUsername;
+                if (credentialsManager.Retrieve(server) is Credential credential)
+                {
+                    loginDialogModel.Username = credential.Username;
+                    loginDialogModel.Password = credential.Password;
+                }
                 await DialogService.ShowDialog(loginDialogModel);
                 if (loginDialogModel.Canceled)
                 {
-                    IsConnecting = false;
                     return false;
                 }
-                else
+                IsConnecting = true;
+                smbFileShare?.Dispose();
+                smbFileShare = null;
+                username = loginDialogModel.Username;
+                password = loginDialogModel.Password;
+                IPAddress ipAddress = await ResolveIPAdressAsync(server);
+                smbFileShare = await SMBFileShare.ConnectAsync(ipAddress, share, username, password);
+                File.WriteAllText(LastConnectionFile, Location);
+                if (loginDialogModel.SaveCredentials && username != string.Empty)
                 {
-                    smbFileShare?.Dispose();
-                    smbFileShare = null;
-                    string username = loginDialogModel.Username;
-                    string password = loginDialogModel.Password;
-                    smbFileShare = await SMBFileShare.ConnectAsync(IPAddress.Parse(server), share, username, password);
-                    File.WriteAllText(LastConnectionFile, Path.Combine("smb://", server, share).Replace("\\", "/") + "\n" + username);
-                    IsConnecting = false;
-                    return true;
+                    credentialsManager.Save(server, new Credential(username, password));
                 }
+                IsConnecting = false;
+                return true;
             }
             catch (Exception exception)
             {
@@ -447,11 +527,24 @@ namespace SMBClient.ViewModels
             }
         }
 
+        private async Task<IPAddress> ResolveIPAdressAsync(string server)
+        {
+            try
+            {
+                return IPAddress.Parse(server);
+            }
+            catch (FormatException)
+            {
+                var result = await Dns.GetHostEntryAsync(server).ConfigureAwait(false);
+                return result.AddressList[0];
+            }
+        }
+
         private void UpdateFileSystemItems()
         {
             try
             {
-                FileSystemItems = SMBFileShare.GetFilesAndDirectories(CurrentPath)
+                FileSystemItems = SMBFileShare.RetrieveItems(CurrentPath)
                     .Select(smbItem => new SMBItemViewModel(smbItem))
                     .OrderByDescending(item => item.IsDirectory)
                     .ThenBy(vm => vm.FileName)
@@ -463,5 +556,6 @@ namespace SMBClient.ViewModels
                 Debug.WriteLine($"Could not fetch files and directories: {exception}");
             }
         }
+
     }
 }

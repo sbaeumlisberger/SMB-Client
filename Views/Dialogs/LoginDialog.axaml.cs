@@ -36,15 +36,6 @@ namespace SMBClient.Views
             }
         }
 
-        public void Window_KeyDown(object sender, KeyEventArgs e) 
-        {
-            if (e.Key == Key.Enter)
-            {
-                ((LoginDialogModel)DataContext).Canceled = false;
-                Close();
-            }
-        }
-
         public void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             Close();

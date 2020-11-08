@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:view="clr-namespace:SMBClient.Views"
         xmlns:vm="clr-namespace:SMBClient.ViewModels"
         mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
         x:Class="SMBClient.Views.ProgressDialog"
@@ -11,9 +12,13 @@
         Title="{Binding Title}">
 
   <Design.DataContext>
-    <vm:ProgressDialogModel Title="Title" Message="Message"/>    
+    <vm:ProgressDialogModel Title="Title" Message="Message"/>
   </Design.DataContext>
 
+  <Window.Resources>
+    <view:TimeSpanConverter x:Key="TimeSpanConverter"/>
+  </Window.Resources>
+  
   <DockPanel Margin="8" LastChildFill="True">
     <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
       <Button Margin="8,0,0,0" Content="Cancel" Click="CancelButton_Click"/>
@@ -21,7 +26,10 @@
     <StackPanel>
       <TextBlock Text="{Binding Message}"/>
       <ProgressBar Margin="0,16,0,0" Height="32" Value="{Binding Progess.Percent}"/>
-      <TextBlock Margin="0,4,0,0" HorizontalAlignment="Right" Text="{Binding Progess.Percent, StringFormat=\{0:###\} %}"/>
+      <Panel>
+        <TextBlock Margin="0,4,0,0" HorizontalAlignment="Left" Text="{Binding Progess.RemainingDuration, StringFormat=Remaining duration: \{0\}, Converter={StaticResource TimeSpanConverter}}"/>
+        <TextBlock Margin="0,4,0,0" HorizontalAlignment="Right" Text="{Binding Progess.Percent, StringFormat=\{0:##0\} %}"/>
+      </Panel>
     </StackPanel>
   </DockPanel>
 

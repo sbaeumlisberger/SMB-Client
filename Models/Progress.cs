@@ -1,6 +1,8 @@
 ﻿using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -8,8 +10,6 @@ namespace SMBClient.Models
 {
     public class Progress : ReactiveObject
     {
-        public static Progress None = new Progress();
-
         public event EventHandler<EventArgs>? StateChanged;
 
         public ProgressState State
@@ -25,23 +25,24 @@ namespace SMBClient.Models
             }
         }
 
-        public double Percent
-        {
-            get => _percent;
-            private set => this.RaiseAndSetIfChanged(ref _percent, value);
-        }
+        [Reactive] public double Percent { get; set; } = 0;
+
+        [Reactive] public TimeSpan RemainingDuration { get; set; } = TimeSpan.Zero;
+
+        [Reactive] public bool IsInitialized { get; set; } = false;
 
         public bool IsCanceled => State == ProgressState.Canceled;
 
         private long target;
         private long value;
 
+        private DateTime startTime;
+
         private ProgressState _state = ProgressState.Running;
-        private double _percent = 0;
 
         public void Cancel()
         {
-            if (State != ProgressState.Running) 
+            if (State != ProgressState.Running)
             {
                 throw new InvalidOperationException($"Must be in state {ProgressState.Running}");
             }
@@ -60,6 +61,8 @@ namespace SMBClient.Models
         public void Initialize(long target)
         {
             this.target = target;
+            startTime = DateTime.Now;
+            IsInitialized = true;
         }
 
         public void Report(long amount)
@@ -69,7 +72,7 @@ namespace SMBClient.Models
                 throw new InvalidOperationException($"Must be in initialized with a valid target");
             }
 
-            if (IsCanceled) 
+            if (IsCanceled)
             {
                 throw new OperationCanceledException();
             }
@@ -78,11 +81,12 @@ namespace SMBClient.Models
 
             Percent = (value / ((double)target)) * 100;
 
-            if (Percent == 100)
+            RemainingDuration = (DateTime.Now - startTime) * ((100 / Percent) - 1);
+
+            if (value == target)
             {
                 State = ProgressState.Finished;
             }
         }
-
     }
 }

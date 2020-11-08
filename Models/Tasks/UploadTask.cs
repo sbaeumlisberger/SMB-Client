@@ -8,70 +8,47 @@ using System.Threading.Tasks;
 
 namespace SMBClient.Models
 {
-    public class UploadTask
+    public class UploadTask : TaskBase
     {
-        private readonly SMBFileShare smbFileShare;
-        private readonly FileSystemInfo fileSystemInfo;
+        private readonly IEnumerable<FileSystemInfo> fileSystemItems;
         private readonly string dstPath;
 
-        private readonly List<IOperation> operations = new List<IOperation>();
-
-        private long progressTarget = 0;
-
-        public UploadTask(SMBFileShare smbFileShare, FileSystemInfo fileSystemInfo, string dstPath)
+        public UploadTask(SMBFileShare smbFileShare, IEnumerable<FileSystemInfo> fileSystemItems, string dstPath) : base(smbFileShare)
         {
-            this.smbFileShare = smbFileShare;
-            this.fileSystemInfo = fileSystemInfo;
+            this.fileSystemItems = fileSystemItems;
             this.dstPath = dstPath;
         }
-
-        public async Task ExecuteAsync(Progress progress)
+        protected override void CreateOperations()
         {
-            await Task.Run(() =>
+            foreach (var fileSystemItem in fileSystemItems)
             {
-                CreateOperations();
-                progress.Initialize(progressTarget);
-                foreach (var operation in operations)
+                if (fileSystemItem is DirectoryInfo srcDirectory)
                 {
-                    operation.Execute(smbFileShare, progress);
+                    CreateOperationsForDirectory(srcDirectory, Path.Combine(dstPath, fileSystemItem.Name));
                 }
-            }).ConfigureAwait(false);
-        }
-
-        private void CreateOperations()
-        {
-            if (fileSystemInfo is DirectoryInfo srcDirectory)
-            {
-                CreateOperations(srcDirectory, dstPath);
-            }
-            else if (fileSystemInfo is FileInfo srcFile)
-            {
-                AddOperation(new UploadFileOperation(srcFile, dstPath));
-            }
-            else
-            {
-                throw new InvalidOperationException();
+                else if (fileSystemItem is FileInfo srcFile)
+                {
+                    AddOperation(new UploadFileOperation(srcFile, Path.Combine(dstPath, fileSystemItem.Name)));
+                }
+                else
+                {
+                    throw new InvalidOperationException();
+                }
             }
         }
 
-        private void CreateOperations(DirectoryInfo srcDirectory, string dstPath)
+        private void CreateOperationsForDirectory(DirectoryInfo srcDirectory, string dstPath)
         {
             AddOperation(new CreateDirectoryOperation(dstPath));
+
             foreach (var directory in srcDirectory.EnumerateDirectories())
             {
-                CreateOperations(directory, Path.Combine(dstPath, directory.Name));
+                CreateOperationsForDirectory(directory, Path.Combine(dstPath, directory.Name));
             }
             foreach (var file in srcDirectory.EnumerateFiles())
             {
                 AddOperation(new UploadFileOperation(file, Path.Combine(dstPath, file.Name)));
             }
         }
-
-        private void AddOperation(IOperation operation)
-        {
-            operations.Add(operation);
-            progressTarget += operation.ProgressAmount;
-        }
-
     }
 }

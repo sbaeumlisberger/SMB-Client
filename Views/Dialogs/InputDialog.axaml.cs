@@ -28,15 +28,6 @@ namespace SMBClient.Views
             this.Find<TextBox>("inputTextBox").Focus();
         }
 
-        public void Window_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                ((InputDialogModel)DataContext).Canceled = false;
-                Close();
-            }
-        }
-
         public void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             Close();

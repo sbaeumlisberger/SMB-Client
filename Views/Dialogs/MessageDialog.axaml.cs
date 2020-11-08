@@ -22,14 +22,6 @@ namespace SMBClient.Views
             AvaloniaXamlLoader.Load(this);            
         }
 
-        public void Window_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                Close();
-            }
-        }
-
         public void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();

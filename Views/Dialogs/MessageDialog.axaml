@@ -8,8 +8,7 @@
         Width="400"
         Height="200"
         WindowStartupLocation="CenterOwner"
-        Title="{Binding Title}"
-        KeyDown="Window_KeyDown">
+        Title="{Binding Title}">
 
   <Design.DataContext>
     <vm:MessageDialogModel Title="Title" Message="Message"/>
@@ -17,7 +16,7 @@
 
   <DockPanel Margin="8" LastChildFill="True">
     <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
-      <Button Margin="8,0,0,0" Content="Close" Click="CloseButton_Click"/>
+      <Button Margin="8,0,0,0" Content="Close" IsDefault="True" Click="CloseButton_Click"/>
     </StackPanel>
     <ScrollViewer>
       <TextBlock Text="{Binding Message}"/>

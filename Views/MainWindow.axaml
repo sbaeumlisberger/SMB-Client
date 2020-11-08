@@ -10,7 +10,8 @@
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/avalonia-logo.ico"
         Title="SMB Client"
-        KeyDown="Window_KeyDown">
+        KeyDown="Window_KeyDown"
+        x:Name="window">
 
   <Design.DataContext>
     <vm:MainWindowViewModel/>
@@ -22,8 +23,8 @@
       <Setter Property="TextAlignment" Value="Center"/>
     </Style>
   </Window.Styles>
-  
-  <DockPanel LastChildFill="True">    
+
+  <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top" LastChildFill="True">
       <Button Width="32" DockPanel.Dock="Left" FontSize="14" Content="←" Command="{Binding DirectoryUp}"/>
       <Panel>
@@ -31,23 +32,49 @@
         <TextBox Background="Transparent" Text="{Binding Location, Mode=OneWay}" KeyDown="Location_KeyDown"/>
       </Panel>
     </DockPanel>
+
+    <ItemsControl DockPanel.Dock="Bottom" Items="{Binding BackgroundTasks}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <Panel>
+            <ProgressBar 
+              IsIndeterminate="{Binding !Progress.IsInitialized}" 
+              Value="{Binding Progress.Percent}"/>
+            <StackPanel Margin="4,2,4,2" Orientation="Horizontal">
+              <TextBlock Text="{Binding Description}"/>
+              <TextBlock Margin="8,0,0,0" Foreground="Red" FontWeight="Bold" Text="{Binding ErrorMessage}"/>
+            </StackPanel>
+            <Button 
+              HorizontalAlignment="Right"
+              Background="Transparent" 
+              BorderThickness="0"
+              IsVisible="{Binding HasError}"
+              Command="{Binding #window.DataContext.CloseBackgroundTask}"
+              CommandParameter="{Binding}">
+              <TextBlock Classes="fontIcon" Text="&#x2716;" FontSize="10"/>
+            </Button>
+          </Panel>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
     <Panel Background="Transparent" Focusable="True">
       <Panel.ContextMenu>
         <ContextMenu>
-          <!--&#x002B;-->
-          <MenuItem Header="Create Directory" Command="{Binding CreateDirectory}">
+          <MenuItem Header="Create directory" Command="{Binding CreateDirectoryAsync}">
             <MenuItem.Icon>
               <TextBlock Classes="fontIcon" Text="&#x2795;"/>
             </MenuItem.Icon>
           </MenuItem>
-          <MenuItem Header="Paste" Command="{Binding PasteAsync}">
+          <MenuItem Header="Paste (App)" Command="{Binding PasteFromAppClipboardAsync}">
             <MenuItem.Icon>
               <TextBlock Classes="fontIcon" Text="&#x1F4CB;"/>
             </MenuItem.Icon>
           </MenuItem>
+          <MenuItem Header="Paste (System)" Command="{Binding PasteFromSystemClipboardAsync}"/>
           <MenuItem Header="Refresh" Command="{Binding Refresh}">
             <MenuItem.Icon>
-              <TextBlock Classes="fontIcon" Text="&#x21BB;" FontSize="14" Margin="0,-1,0,0"/>
+              <TextBlock Classes="fontIcon" Text="&#x21BB;" FontSize="14" Margin="0,-2,0,0"/>
             </MenuItem.Icon>
           </MenuItem>
         </ContextMenu>
@@ -75,16 +102,29 @@
           <DataGridTemplateColumn Header="Name" Width="200">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <Panel 
+                <Panel
                   Background="Transparent"
-                  VerticalAlignment="Stretch" 
+                  VerticalAlignment="Stretch"
                   HorizontalAlignment="Stretch"
                   PointerPressed="Item_PointerPressed"
                   PointerReleased="Item_PointerReleased">
                   <TextBlock Margin="4,0,0,0" VerticalAlignment="Center" Text="{Binding FileName}"/>
                   <Panel.ContextMenu>
                     <ContextMenu>
-                      <MenuItem 
+                      <MenuItem
+                        Header="Open with..."
+                        Command="{Binding #dataGrid.DataContext.OpenWithAsync}" >
+                        <TextBlock.IsVisible>
+                          <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="!#dataGrid.DataContext.MultipleItemsSelected"/>
+                            <Binding Path="!#dataGrid.DataContext.DirectorySelected"/>
+                          </MultiBinding>
+                        </TextBlock.IsVisible>
+                        <MenuItem.Icon>
+                          <TextBlock Classes="fontIcon" Margin="0,2,0,0" FontFamily="Segoe MDL2 Assets" Text="&#xE17D;"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem
                         Header="Rename"
                         Command="{Binding #dataGrid.DataContext.RenameAsync}"
                         IsVisible="{Binding !#dataGrid.DataContext.MultipleItemsSelected}">
@@ -93,16 +133,19 @@
                         </MenuItem.Icon>
                       </MenuItem>
                       <MenuItem
-                        Header="Copy"                       
-                        Command="{Binding #dataGrid.DataContext.Copy}">
+                        Header="Copy (App)"
+                        Command="{Binding #dataGrid.DataContext.CopyToAppClipboard}">
                         <MenuItem.Icon>
                           <TextBlock Classes="fontIcon" Text="&#x1F4CB;"/>
                         </MenuItem.Icon>
                       </MenuItem>
                       <MenuItem
+                        Header="Copy (System)"
+                        Command="{Binding #dataGrid.DataContext.CopyToSystemClipboardAsync}"
+                        IsVisible="{Binding !#dataGrid.DataContext.DirectorySelected}"/>
+                      <MenuItem
                         Header="Save"
-                        Command="{Binding #dataGrid.DataContext.SaveAsync}"
-                        IsVisible="{Binding !#dataGrid.DataContext.MultipleItemsSelected}">
+                        Command="{Binding #dataGrid.DataContext.SaveAsync}">
                         <MenuItem.Icon>
                           <TextBlock Classes="fontIcon" Text="&#x1F4BE;"/>
                         </MenuItem.Icon>
@@ -121,6 +164,7 @@
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
           <DataGridTextColumn Header="Date modified" Width="150" Binding="{Binding LastWriteTime}"/>
+          <DataGridTextColumn Header="Date created" Width="150" Binding="{Binding CreationTime}"/>
           <DataGridTextColumn Header="Size" Width="150" Binding="{Binding Size}"/>
         </DataGrid.Columns>
       </DataGrid>
